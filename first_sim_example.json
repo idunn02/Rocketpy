@@ -8,7 +8,8 @@
         "elevation": 71.0
       },
       "datum": "None",
-      "atmospheric_data_url": "url"
+      "atmospheric_data_url": "url",
+      "atmospheric_data_type": "url"
     },
     "solid_motor": {
       "thrust_source": "data/Pro75M1670.eng",
