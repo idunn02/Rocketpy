@@ -3,8 +3,9 @@ import datetime
 import pandas
 import requests
 import argparse
+from functools import partial
 
-from parachute_deployments import *
+import parachute_deployments
 
 from rocketpy import Environment, SolidMotor, Rocket, Flight
 
@@ -174,14 +175,31 @@ def main():
     )
 
     for parachute in config["rocket"]["parachutes"]:
-        rocket.addParachute(
-            name=parachute["name"],
-            cdS=parachute["cd_s"],
-            trigger=parachute["trigger"],
-            samplingRate=parachute["sampling_rate"],
-            lag=parachute["lag"],
-            noise=parachute["noise"],
-        )
+        parachute_args = {"name": parachute["name"], "cd_s": parachute["cd_s"]}
+
+        ## handling the parachute trigger if something is suppose to release at apogee
+        ##   or sometime after apogee
+        if parachute["trigger"] == "apogee":
+            parachute_args["trigger"] = parachute["trigger"]
+        else:
+            ## handling when the deployment mechanism uses a callable from parachute_deployments.py
+            if hasattr(parachute_deployments, parachute["trigger"]):
+                parachute_func = getattr(parachute_deployments, parachute["trigger"])
+                ## also need to handle deployment mechanisms for each function used
+                if parachute["trigger"] == "deploy_at_altitude_after_apogee":
+                    modded_parachute_func = partial(
+                        parachute_func, altitude_deploy=parachute["altitude_deploy"]
+                    )
+                    parachute_args["trigger"] = modded_parachute_func
+
+        if parachute["noise"] in parachute:
+            parachute_args["noise"] = parachute["noise"]
+        if parachute["sampling_rate"] in parachute:
+            parachute_args["sampling_rate"] = parachute["sampling_rate"]
+        if parachute["lag"] in parachute:
+            parachute_args["lag"] = parachute["lag"]
+
+        rocket.addParachute(**parachute_args)
 
     test_flight = Flight(rocket, env, inclination=85, heading=0)
 
